@@ -104,81 +104,84 @@
         <div id="history" class="history"></div>
     </div>
     <script>
-document.getElementById('prompt').addEventListener('keydown', function(event) {
-    if (event.ctrlKey && event.key === 'Enter') {
-        document.getElementById('getResponseButton').click();
-    }
-});
-
-const logs = []; // Array to hold logs
-function fetchResponse() {
-    const prompt = document.getElementById('prompt').value;
-    const currentResponseDiv = document.getElementById('current-response');
-    const historyDiv = document.getElementById('history');
-    currentResponseDiv.textContent = 'Fetching response...';
-    fetch('http://localhost:11434/api/generate', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: 'llama3:8b',
-            prompt: prompt,
-            options: {
-                num_ctx: 4096
+        document.getElementById('prompt').addEventListener('keydown', function(event) {
+            if (event.ctrlKey && event.key === 'Enter') {
+                document.getElementById('getResponseButton').click();
             }
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let chunk = '';
-        let responseContent = '';
-        reader.read().then(function processText({ done, value }) {
-            if (done) {
-                // Clear textarea and update history after complete response is fetched
-                document.getElementById('prompt').value = '';
-                historyDiv.innerHTML += `<div class="history-item"><strong>Prompt:</strong> ${prompt}<br><strong>Response:</strong> ${responseContent}</div><hr>`;
-                logs.push({ prompt: prompt, response: responseContent });
-                updateLogs(); // Update logs output
-                return;
-            }
-            chunk += decoder.decode(value, { stream: true });
-            while (true) {
-                const boundary = chunk.indexOf('\n');
-                if (boundary === -1) break;
-                const jsonLine = chunk.slice(0, boundary);
-                chunk = chunk.slice(boundary + 1);
-                if (jsonLine.trim()) {
-                    try {
-                        const data = JSON.parse(jsonLine);
-                        if (data.response) {
-                            responseContent += data.response + '\n';
-                            currentResponseDiv.textContent = responseContent;
-                        }
-                    } catch (e) {
-                        console.error('Failed to parse JSON line', e);
-                    }
-                }
-            }
-            return reader.read().then(processText);
         });
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        currentResponseDiv.textContent = 'Error fetching response';
-    });
-}
 
-function updateLogs() {
-    console.log('Logs:', logs);
-}
+        const logs = []; // Array to hold logs
 
-function formatResponse(response) {
+        function fetchResponse() {
+            const prompt = document.getElementById('prompt').value;
+            const currentResponseDiv = document.getElementById('current-response');
+            const historyDiv = document.getElementById('history');
+            currentResponseDiv.textContent = 'Fetching response...';
+            fetch('http://localhost:11434/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'llama3:8b',
+                    prompt: prompt,
+                    options: {
+                        num_ctx: 4096
+                    }
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let chunk = '';
+                let responseContent = '';
+                reader.read().then(function processText({ done, value }) {
+                    if (done) {
+                        // Clear textarea and update history after complete response is fetched
+                        document.getElementById('prompt').value = '';
+                        historyDiv.innerHTML += `<div class="history-item"><strong>Prompt:</strong> ${prompt} <br><strong>Response:</strong> ${formatResponse(responseContent)}</div><hr>`;
+                        logs.push({ prompt: prompt, response: responseContent });
+                        updateLogs(); // Update logs output
+                        return;
+                    }
+                    chunk += decoder.decode(value, { stream: true });
+                    while (true) {
+                        const boundary = chunk.indexOf('\n');
+                        if (boundary === -1) break;
+                        const jsonLine = chunk.slice(0, boundary);
+                        chunk = chunk.slice(boundary + 1);
+                        if (jsonLine.trim()) {
+                            try {
+                                const data = JSON.parse(jsonLine);
+                                if (data.response) {
+                                    responseContent += data.response;
+                                    //console.log(data.response);
+                                    currentResponseDiv.textContent = formatResponse(responseContent);
+                                }
+                            } catch (e) {
+                                console.error('Failed to parse JSON line', e);
+                            }
+                        }
+                    }
+                    return reader.read().then(processText);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                currentResponseDiv.textContent = 'Error fetching response';
+            });
+        }
+
+        function updateLogs() {
+            console.log('Logs:', logs);
+        }
+
+        function formatResponse(response) {
             // Add some additional formatting to the response text
+            response = response.replace(/\n/g, ''); //new line
             response = response.replace(/\`\`\`(.*?)\`\`\`/g, '<div class="code-block"><code>$1</code></div>'); // Code blocks
             response = response.replace(/`(.*?)`/g, '<code>$1</code>'); // Inline code
             response = response.replace(/^(.+?)\n/gm, '<p>$1</p>'); // Paragraphs

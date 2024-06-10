@@ -142,7 +142,7 @@
                     if (done) {
                         // Clear textarea and update history after complete response is fetched
                         document.getElementById('prompt').value = '';
-                        historyDiv.innerHTML += `<div class="history-item"><strong>Prompt:</strong> ${prompt}<br><strong>Response:</strong> ${format${formatResponse(responseContent)}</div><hr>`;
+                        historyDiv.innerHTML += `<div class="history-item"><strong>Prompt:</strong> ${prompt} <br><strong>Response:</strong> ${formatResponse(responseContent)}</div><hr>`;
                         logs.push({ prompt: prompt, response: responseContent });
                         updateLogs(); // Update logs output
                         return;
@@ -157,7 +157,8 @@
                             try {
                                 const data = JSON.parse(jsonLine);
                                 if (data.response) {
-                                    responseContent += data.response + '\n';
+                                    responseContent += data.response;
+                                    //console.log(data.response);
                                     currentResponseDiv.textContent = formatResponse(responseContent);
                                 }
                             } catch (e) {
@@ -167,7 +168,7 @@
                     }
                     return reader.read().then(processText);
                 });
-            }
+            })
             .catch(error => {
                 console.error('Error:', error);
                 currentResponseDiv.textContent = 'Error fetching response';
@@ -180,6 +181,7 @@
 
         function formatResponse(response) {
             // Add some additional formatting to the response text
+            response = response.replace(/\n/g, ''); //new line
             response = response.replace(/\`\`\`(.*?)\`\`\`/g, '<div class="code-block"><code>$1</code></div>'); // Code blocks
             response = response.replace(/`(.*?)`/g, '<code>$1</code>'); // Inline code
             response = response.replace(/^(.+?)\n/gm, '<p>$1</p>'); // Paragraphs
