@@ -7,45 +7,46 @@
     <style>
         /* Add some basic styling */
         body {
-            font-family: Arial, sans-serif;
-            background-color: #1e1e1e;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #000000;
             margin: 0;
             padding: 0;
-            color: #ffffff;
+            color: #00FF00;
         }
         .container {
             max-width: 800px;
             margin: 50px auto;
-            background: #282828;
+            background: #1a1a1a;
             padding: 20px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.9);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
             border-radius: 8px;
         }
         h1, h2 {
-            color: #00ffcc;
+            color: #00FF00;
+            text-shadow: 0 0 10px #00FF00;
         }
         .prompt, .response, .history {
             padding: 10px;
             margin: 10px 0;
-            border: 1px solid #444;
+            border: 1px solid #006600;
             border-radius: 5px;
-            background: #333;
-            color: #00ffcc;
+            background: #0a0a0a;
+            color: #00FF00;
         }
         .prompt {
             width: 100%;
             resize: none;
         }
         .response, .history {
-            background: #333;
+            background: #0a0a0a;
         }
         .history {
             max-height: 300px;
             overflow-y: auto;
         }
         button {
-            background-color: #ff00ff;
-            color: #ffffff;
+            background-color: #00FF00;
+            color: #000000;
             border: none;
             padding: 10px 20px;
             border-radius: 5px;
@@ -54,14 +55,17 @@
             transition: background-color 0.3s;
         }
         button:hover {
-            background-color: #ff1aff;
+            background-color: #33FF33;
         }
         .history-item {
             margin-bottom: 10px;
+            padding: 10px;
+            background: #111;
+            border-radius: 5px;
         }
         hr {
             border: 0;
-            border-top: 1px solid #444;
+            border-top: 1px solid #006600;
         }
         /* Add some additional styles for the response text */
         .response-text {
@@ -69,18 +73,18 @@
             word-wrap: break-word;
         }
         .code-block {
-            background: #333;
+            background: #111;
             padding: 10px;
             border-radius: 5px;
         }
         .code-block code {
             font-family: monospace;
             font-size: 14px;
-            color: #ffffff;
+            color: #00FF00;
         }
         .copy-button {
-            background-color: #ff00ff;
-            color: #ffffff;
+            background-color: #00FF00;
+            color: #000000;
             border: none;
             padding: 5px 10px;
             border-radius: 5px;
@@ -88,7 +92,7 @@
             font-size: 14px;
         }
         .copy-button:hover {
-            background-color: #ff1aff;
+            background-color: #33FF33;
         }
     </style>
 </head>
@@ -96,7 +100,7 @@
     <div class="container">
         <h1>Prompt and Response</h1>
         <textarea id="prompt" rows="4" class="prompt" placeholder="Enter your prompt here"></textarea>
-        <button id="getResponseButton" onclick="fetchResponse()">Get Response</button>
+        <button id="getResponseButton" onclick="fetchResponse()">Get Response (Ctrl+Enter)</button>
         <div id="current-response" class="response">
             <div class="response-text"></div>
         </div>
@@ -142,7 +146,7 @@
                     if (done) {
                         // Clear textarea and update history after complete response is fetched
                         document.getElementById('prompt').value = '';
-                        historyDiv.innerHTML += `<div class="history-item"><strong>Prompt:</strong> ${prompt} <br><strong>Response:</strong> ${formatResponse(responseContent)}</div><hr>`;
+                        historyDiv.innerHTML += `<div class="history-item"><strong>Prompt:</strong> ${prompt}<br><strong>Response:</strong> ${formatResponse(responseContent)}</div><hr>`;
                         logs.push({ prompt: prompt, response: responseContent });
                         updateLogs(); // Update logs output
                         return;
@@ -158,8 +162,7 @@
                                 const data = JSON.parse(jsonLine);
                                 if (data.response) {
                                     responseContent += data.response;
-                                    //console.log(data.response);
-                                    currentResponseDiv.textContent = formatResponse(responseContent);
+                                    currentResponseDiv.innerHTML = formatResponse(responseContent);
                                 }
                             } catch (e) {
                                 console.error('Failed to parse JSON line', e);
@@ -184,6 +187,7 @@
             response = response.replace(/\n/g, ''); //new line
             response = response.replace(/\`\`\`(.*?)\`\`\`/g, '<div class="code-block"><code>$1</code></div>'); // Code blocks
             response = response.replace(/`(.*?)`/g, '<code>$1</code>'); // Inline code
+            response = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold text
             response = response.replace(/^(.+?)\n/gm, '<p>$1</p>'); // Paragraphs
             response = response.replace(/<p>(\r\n|\r|\n)/gm, '</p><p>'); // Remove extra newlines
             response = response.replace(/<p><\/p>/gm, ''); // Remove empty paragraphs

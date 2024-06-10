@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt and Response</title>
+<style>
+/* Add some basic styling */
+body {
+font-family: 'Courier New', Courier, monospace;
+background-color: #000000;
+margin: 0;
+padding: 0;
+color: #00FF00;
+overflow: hidden;
+ }
+.container {
+position: relative;
+z-index: 1;
+max-width: 800px;
+margin: 50px auto;
+background: #1a1a1a;
+padding: 20px;
+box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+border-radius: 8px;
+ }
+h1, h2 {
+color: #00FF00;
+text-shadow: 0 0 10px #00FF00;
+ }
+.prompt, .response, .history {
+padding: 10px;
+margin: 10px 0;
+border: 1px solid #006600;
+border-radius: 5px;
+background: #0a0a0a;
+color: #00FF00;
+ }
+.prompt {
+width: 100%;
+resize: none;
+ }
+.response, .history {
+background: #0a0a0a;
+ }
+.history {
+max-height: 300px;
+overflow-y: auto;
+ }
+button {
+background-color: #00FF00;
+color: #000000;
+border: none;
+padding: 10px 20px;
+border-radius: 5px;
+cursor: pointer;
+font-size: 16px;
+transition: background-color 0.3s;
+ }
+button:hover {
+background-color: #33FF33;
+ }
+.history-item {
+margin-bottom: 10px;
+padding: 10px;
+background: #111;
+border-radius: 5px;
+ }
+hr {
+border: 0;
+border-top: 1px solid #006600;
+ }
+/* Add some additional styles for the response text */
+.response-text {
+white-space: pre-wrap;
+word-wrap: break-word;
+ }
+.code-block {
+background: #111;
+padding: 10px;
+border-radius: 5px;
+ }
+.code-block code {
+font-family: monospace;
+font-size: 14px;
+color: #00FF00;
+ }
+.copy-button {
+background-color: #00FF00;
+color: #000000;
+border: none;
+padding: 5px 10px;
+border-radius: 5px;
+cursor: pointer;
+font-size: 14px;
+ }
+.copy-button:hover {
+background-color: #33FF33;
+ }
+/* Position the canvas full screen behind the content */
+#backgroundCanvas {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+z-index: 0;
+ }
+</style>
+</head>
+<body>
+<canvas id="backgroundCanvas"></canvas>
+<div class="container">
+<h1>Prompt and Response</h1>
+<textarea id="prompt" rows="4" class="prompt" placeholder="Enter your prompt here"></textarea>
+<button id="getResponseButton" onclick="fetchResponse()">Get Response (Ctrl+Enter)</button>
+<div id="current-response" class="response">
+<div class="response-text"></div>
+</div>
+<h2>History</h2>
+<div id="history" class="history"></div>
+</div>
+<script>
+document.getElementById('prompt').addEventListener('keydown', function(event) {
+if (event.ctrlKey && event.key === 'Enter') {
+document.getElementById('getResponseButton').click();
+ }
+ });
+const logs = []; // Array to hold logs
+function fetchResponse() {
+const prompt = document.getElementById('prompt').value;
+const currentResponseDiv = document.getElementById('current-response');
+const historyDiv = document.getElementById('history');
+currentResponseDiv.textContent = 'Fetching response...';
+fetch('http://localhost:11434/api/generate', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json'
+ },
+body: JSON.stringify({
+model: 'llama3:8b',
+prompt: prompt,
+options: {
+num_ctx: 4096
+ }
+ })
+ })
+ .then(response => {
+if (!response.ok) {
+throw new Error('Network response was not ok');
+ }
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+let chunk = '';
+let responseContent = '';
+reader.read().then(function processText({ done, value }) {
+if (done) {
+// Clear textarea and update history after complete response is fetched
+document.getElementById('prompt').value = '';
+historyDiv.innerHTML += `<div class="history-item"><strong>Prompt:</strong> ${prompt}<br><strong>Response:</strong> ${formatResponse(responseContent)}</div><hr>`;
+logs.push({ prompt: prompt, response: responseContent });
+updateLogs(); // Update logs output
+return;
+ }
+chunk += decoder.decode(value, { stream: true });
+while (true) {
+const boundary = chunk.indexOf('\n');
+if (boundary === -1) break;
+const jsonLine = chunk.slice(0, boundary);
+chunk = chunk.slice(boundary + 1);
+if (jsonLine.trim()) {
+try {
+const data = JSON.parse(jsonLine);
+if (data.response) {
+responseContent += data.response;
+currentResponseDiv.innerHTML = formatResponse(responseContent);
+ }
+ } catch (e) {
+console.error('Failed to parse JSON line', e);
+ }
+ }
+ }
+return reader.read().then(processText);
+ });
+ })
+ .catch(error => {
+console.error('Error:', error);
+currentResponseDiv.textContent = 'Error fetching response';
+ });
+ }
+function updateLogs() {
+console.log('Logs:', logs);
+ }
+function formatResponse(response) {
+// Add some additional formatting to the response text
+response = response.replace(/\n/g, ''); //new line
+response = response.replace(/\`\`\`(.*?)\`\`\`/g, '<div class="code-block"><code>$1</code></div>'); // Code blocks
+response = response.replace(/`(.*?)`/g, '<code>$1</code>'); // Inline code
+response = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold text
+response = response.replace(/^(.+?)\n/gm, '<p>$1</p>'); // Paragraphs
+response = response.replace(/<p>(\r\n|\r|\n)/gm, '</p><p>'); // Remove extra newlines
+response = response.replace(/<p><\/p>/gm, ''); // Remove empty paragraphs
+return response;
+ }
+// Matrix-like background effect
+const canvas = document.getElementById('backgroundCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const letters = Array(256).join(1).split('');
+function drawMatrix() {
+ctx.fillStyle = 'rgba(0, 0, 0, .05)';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+ctx.fillStyle = '#0F0';
+letters.map((y_pos, index) => {
+const text = String.fromCharCode(65 + Math.random() * 33);
+const x_pos = index * 10;
+ctx.fillText(text, x_pos, y_pos);
+letters[index] = y_pos > 758 + Math.random() * 1e4 ? 0 : y_pos + 10;
+ });
+ }
+setInterval(drawMatrix, 33);
+</script>
+</body>
+</html>
