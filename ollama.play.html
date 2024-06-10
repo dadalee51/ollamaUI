@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt and Response</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background-color: #1e1e1e; /* Dark background */
+    margin: 0;
+    padding: 0;
+    color: #ffffff; /* White text to contrast with dark background */
+}
+.container {
+    max-width: 800px;
+    margin: 50px auto;
+    background: #282828; /* Darker background for container */
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.9); /* Deeper shadow effect */
+    border-radius: 8px;
+}
+h1, h2 {
+    color: #00ffcc; /* Neon cyan color for headers */
+}
+.prompt, .response, .history {
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #444; /* Darker border color */
+    border-radius: 5px;
+    background: #333; /* Dark background for input areas */
+    color: #00ffcc; /* Neon color for text inside input areas */
+}
+.prompt {
+    width: 100%;
+    resize: none;
+}
+.response, .history {
+    background: #333;
+}
+.history {
+    max-height: 300px;
+    overflow-y: auto;
+}
+button {
+    background-color: #ff00ff; /* Neon magenta button */
+    color: #ffffff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+button:hover {
+    background-color: #ff1aff; /* Slightly different neon magenta on hover */
+}
+.history-item {
+    margin-bottom: 10px;
+}
+hr {
+    border: 0;
+    border-top: 1px solid #444; /* Darker horizontal rule */
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Prompt and Response</h1>
+    <textarea id="prompt" rows="4" class="prompt" placeholder="Enter your prompt here">Why is the sky blue?</textarea>
+    <button id="getResponseButton" onclick="fetchResponse()">Get Response</button>
+    <div id="current-response" class="response"></div>
+    <h2>History</h2>
+    <div id="history" class="history"></div>
+</div>
+<script>
+document.getElementById('prompt').addEventListener('keydown', function(event) {
+    if (event.ctrlKey && event.key === 'Enter') {
+        document.getElementById('getResponseButton').click();
+    }
+});
+
+const logs = []; // Array to hold logs
+function fetchResponse() {
+    const prompt = document.getElementById('prompt').value;
+    const currentResponseDiv = document.getElementById('current-response');
+    const historyDiv = document.getElementById('history');
+    currentResponseDiv.textContent = 'Fetching response...';
+    fetch('http://localhost:11434/api/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: 'llama3:8b',
+            prompt: prompt,
+            options: {
+                num_ctx: 4096
+            }
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let chunk = '';
+        let responseContent = '';
+        reader.read().then(function processText({ done, value }) {
+            if (done) {
+                // Clear textarea and update history after complete response is fetched
+                document.getElementById('prompt').value = '';
+                historyDiv.innerHTML += `<div class="history-item"><strong>Prompt:</strong> ${prompt}<br><strong>Response:</strong> ${responseContent}</div><hr>`;
+                logs.push({ prompt: prompt, response: responseContent });
+                updateLogs(); // Update logs output
+                return;
+            }
+            chunk += decoder.decode(value, { stream: true });
+            while (true) {
+                const boundary = chunk.indexOf('\n');
+                if (boundary === -1) break;
+                const jsonLine = chunk.slice(0, boundary);
+                chunk = chunk.slice(boundary + 1);
+                if (jsonLine.trim()) {
+                    try {
+                        const data = JSON.parse(jsonLine);
+                        if (data.response) {
+                            responseContent += data.response + '\n';
+                            currentResponseDiv.textContent = responseContent;
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse JSON line', e);
+                    }
+                }
+            }
+            return reader.read().then(processText);
+        });
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        currentResponseDiv.textContent = 'Error fetching response';
+    });
+}
+
+function updateLogs() {
+    console.log('Logs:', logs);
+}
+</script>
+</body>
+</html>
