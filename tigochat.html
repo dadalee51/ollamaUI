@@ -132,7 +132,7 @@ function fetchResponse() {
     const currentResponseDiv = document.getElementById('current-response');
     const historyDiv = document.getElementById('history');
     currentResponseDiv.textContent = 'Fetching response...';
-    fetch('http://localhost:11434/api/generate', {
+    fetch(`http://${window.location.hostname}:11434/api/generate`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
