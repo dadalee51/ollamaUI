@@ -61,18 +61,20 @@ class PromptAndResponseApp:
         self.prompt.bind('<Up>', self.show_previous_prompt)
         self.prompt.bind('<Down>', self.show_next_prompt)
         self.prompt.config(insertbackground="white")  # Show cursor in the prompt area
-
-        # Response area
+        
+        # Execute button
+        self.execute_button = tk.Button(self.container, text="Get Response (Ctrl+Enter)", command=self.fetch_response, fg="#000000", bg="#00FF00", activebackground="#33FF33", font=("Courier New", 12))
+        self.execute_button.grid(row=8, column=0, pady=10, sticky="ew")
+        
+        # Response area with scrollbar
         self.response_label = tk.Label(self.container, text="Current Response:", font=("Courier New", 12), fg="#00FF00", bg="#1a1a1a")
         self.response_label.grid(row=6, column=0, sticky="w")
-        self.current_response = tk.Text(self.container, wrap=tk.WORD, width=70, height=6, font=("Courier New", 12), fg="#00FF00", bg="#0a0a0a", borderwidth=1, relief="solid")
+        self.current_response = scrolledtext.ScrolledText(self.container, wrap=tk.WORD, width=70, height=6, font=("Courier New", 12), fg="#00FF00", bg="#0a0a0a", borderwidth=1, relief="solid")
         self.current_response.grid(row=7, column=0, pady=10, sticky="ew")
         self.current_response.config(state=tk.DISABLED)
         self.current_response.config(insertbackground="white")  # Show cursor in the response area
 
-        # Execute button
-        self.execute_button = tk.Button(self.container, text="Get Response (Ctrl+Enter)", command=self.fetch_response, fg="#000000", bg="#00FF00", activebackground="#33FF33", font=("Courier New", 12))
-        self.execute_button.grid(row=8, column=0, pady=10, sticky="ew")
+       
 
         self.root.bind('<Control-Return>', lambda event: self.fetch_response())
 
@@ -115,7 +117,7 @@ class PromptAndResponseApp:
             url = f"http://{server_ip}:11434/api/generate"
             headers = {'Content-Type': 'application/json'}
             data = {
-                "model": "llava:latest",
+                "model": "llama3:8b",
                 "prompt": prompt,
                 "instructions": instructions,
                 "options": {"num_ctx": 4096}
