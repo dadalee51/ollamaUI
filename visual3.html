@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt and Response</title>
+<style>
+/* Add some basic styling */
+body {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #000000;
+    margin: 0;
+    padding: 0;
+    color: #00FFFF; /* Neon blue color */
+    overflow: auto; /* Allow scrolling when content overflows */
+    /* background: url('https://www.publicdomainpictures.net/pictures/320000/velka/background-image.png') no-repeat center center fixed;  */
+    /* background-size: cover; */
+}
+.container {
+    position: relative;
+    z-index: 1;
+    max-width: 800px;
+    margin: 50px auto;
+    background: rgba(26, 26, 26, 0.8);
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3); /* Neon blue shadow */
+    border-radius: 8px;
+}
+h1, h2 {
+    color: #00FFFF;
+    text-shadow: 0 0 10px #00FFFF;
+}
+.prompt, .response, .history {
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #0066CC; /* Neon blue border */
+    border-radius: 5px;
+    background: #0a0a0a;
+    color: #00FFFF;
+}
+.prompt {
+    width: 100%;
+    resize: none;
+}
+.response, .history {
+    background: #0a0a0a;
+}
+.history {
+    max-height: 300px;
+    overflow-y: auto;
+}
+button {
+    background-color: #00FFFF;
+    color: #000000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+button:hover {
+    background-color: #33FFFF;
+}
+.history-item {
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #111;
+    border-radius: 5px;
+}
+hr {
+    border: 0;
+    border-top: 1px solid #0066CC;
+}
+/* Add some additional styles for the response text */
+.response-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.code-block {
+    background: #111;
+    padding: 10px;
+    border-radius: 5px;
+}
+.code-block code {
+    font-family: monospace;
+    font-size: 14px;
+    color: #00FFFF;
+}
+.copy-button {
+    background-color: #00FFFF;
+    color: #000000;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.copy-button:hover {
+    background-color: #33FFFF;
+}
+.img-preview {
+    margin-top: 10px;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #0066CC;
+    border-radius: 5px;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.0.0-rc.5/dist/html2canvas.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <h1>Prompt and Response</h1>
+    <textarea id="prompt" rows="4" class="prompt" placeholder="Enter your prompt here, use arrow key for history."></textarea>
+    <label for="imageInput">Load image:</label>
+    <input type="file" id="imageInput" accept="image/*">
+    <button id="getResponseButton" onclick="fetchResponse()">Get Response (Ctrl+Enter)</button>
+    <button id="takeScreenshotButton" onclick="takeScreenshot()">Take Screenshot</button>
+    <div id="current-response" class="response">
+        <div class="response-text"></div>
+    </div>
+    <h2>History</h2>
+    <div id="history" class="history"></div>
+    <img id="imagePreview" class="img-preview" src="" alt="Image Preview">
+</div>
+<script>
+document.getElementById('prompt').addEventListener('keydown', function(event) {
+    if (event.ctrlKey && event.key === 'Enter') {
+        document.getElementById('getResponseButton').click();
+    }
+});
+
+document.getElementById('imageInput').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('imagePreview').src = e.target.result;
+            document.getElementById('imageInput').dataset.base64 = e.target.result.split(',')[1];
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+let currentHistoryIndex = -1;
+const logs = []; // Array to hold logs
+
+document.getElementById('prompt').addEventListener('keydown', function(event) {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault(); // Prevent cursor movement
+        if (logs.length === 0) return;
+        if (event.key === 'ArrowUp') {
+            currentHistoryIndex = (currentHistoryIndex > 0) ? currentHistoryIndex - 1 : logs.length - 1;
+        } else if (event.key === 'ArrowDown') {
+            currentHistoryIndex = (currentHistoryIndex < logs.length - 1) ? currentHistoryIndex + 1 : 0;
+        }
+        document.getElementById('prompt').value = logs[currentHistoryIndex].prompt;
+    }
+});
+
+function takeScreenshot() {
+    html2canvas(document.body).then(canvas => {
+        const base64Image = canvas.toDataURL();
+        document.getElementById('imagePreview').src = base64Image;
+        document.getElementById('imageInput').dataset.base64 = base64Image.split(',')[1]; // Store base64 for later use
+    });
+}
+
+function fetchResponse() {
+    const prompt = document.getElementById('prompt').value.trim();
+    if (prompt !== '') {
+        let base64Image = document.getElementById('imageInput').dataset.base64;
+        const fileInput = document.getElementById('imageInput');
+        const file = fileInput.files[0];
+        // If user didn't select an image but took a screenshot
+        if (!file && !base64Image) {
+            alert("Please select an image or take a screenshot first.");
+            return;
+        }
+        // If user selected a file, convert it to base64
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                base64Image = reader.result.split(',')[1];
+                // Proceed with fetch request once the image is converted
+                makeFetchRequest(prompt, base64Image);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // Proceed directly if the screenshot was taken
+            makeFetchRequest(prompt, base64Image);
+        }
+    }
+}
+
+function makeFetchRequest(prompt, base64Image) {
+    // Save the current prompt in the logs
+    logs.push({ prompt: prompt, response: '' });
+    currentHistoryIndex = logs.length; // Reset the history index
+    const currentResponseDiv = document.getElementById('current-response');
+    const historyDiv = document.getElementById('history');
+    currentResponseDiv.textContent = 'Fetching response...';
+    fetch(`http://${window.location.hostname}:11434/api/generate`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: 'llava:latest',
+            prompt: prompt,
+            options: {
+                num_ctx: 4096
+            },
+            images: [base64Image]
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let chunk = '';
+        let responseContent = '';
+        reader.read().then(function processText({ done, value }) {
+            if (done) {
+                // Clear textarea and update history after complete response is fetched
+                document.getElementById('prompt').value = '';
+                historyDiv.innerHTML += `<div class="history-item"><strong>Prompt:</strong> ${prompt}<br><strong>Response:</strong> ${formatResponse(responseContent)}</div><hr>`;
+                // Update the last log entry with the response
+                logs[logs.length - 1].response = responseContent;
+                updateLogs(); // Update logs output
+                return;
+            }
+            chunk += decoder.decode(value, { stream: true });
+            while (true) {
+                const boundary = chunk.indexOf('\n');
+                if (boundary === -1) break;
+                const jsonLine = chunk.slice(0, boundary);
+                chunk = chunk.slice(boundary + 1);
+                if (jsonLine.trim()) {
+                    try {
+                        const data = JSON.parse(jsonLine);
+                        if (data.response) {
+                            responseContent += data.response;
+                            currentResponseDiv.innerHTML = formatResponse(responseContent);
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse JSON line', e);
+                    }
+                }
+            }
+            return reader.read().then(processText);
+        });
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        currentResponseDiv.textContent = 'Error fetching response';
+    });
+}
+
+function updateLogs() {
+    console.log('Logs:', logs);
+}
+
+function formatResponse(response) {
+    // Convert special characters to HTML entities
+    response = response
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    // Add some additional formatting to the response text
+    response = response.replace(/\`\`\`(.*?)\`\`\`/g, '<div class="code-block"><code>$1</code></div>'); // Code blocks
+    response = response.replace(/`(.*?)`/g, '<code>$1</code>'); // Inline code
+    response = response.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold text
+    response = response.replace(/^(.+?)\n/gm, '<p>$1</p>'); // Paragraphs
+    response = response.replace(/<p>(\r\n|\r|\n)/gm, '</p><p>'); // Remove extra newlines
+    response = response.replace(/<p><\/p>/gm, ''); // Remove empty paragraphs
+    return response;
+}
+</script>
+</body>
+</html>
