@@ -13,8 +13,6 @@ body {
     padding: 0;
     color: #00FFFF; /* Neon blue color */
     overflow: auto; /* Allow scrolling when content overflows */
-    /* background: url('https://www.publicdomainpictures.net/pictures/320000/velka/background-image.png') no-repeat center center fixed;  */
-    /* background-size: cover; */
 }
 .container {
     position: relative;
@@ -25,6 +23,7 @@ body {
     padding: 20px;
     box-shadow: 0 0 20px rgba(0, 255, 255, 0.3); /* Neon blue shadow */
     border-radius: 8px;
+    overflow: auto; /* Allow scrolling inside the container */
 }
 h1, h2 {
     color: #00FFFF;
@@ -111,7 +110,7 @@ hr {
 </head>
 <body>
 <div class="container">
-    <h1>Prompt and Response</h1>
+    <h1>View, Prompt and Response</h1>
     <textarea id="prompt" rows="4" class="prompt" placeholder="Enter your prompt here, use arrow key for history."></textarea>
     <label for="imageInput">Load image:</label>
     <input type="file" id="imageInput" accept="image/*">
